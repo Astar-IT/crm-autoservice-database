@@ -3,8 +3,7 @@ name: Update Submodules in Services
 on:
   push:
     branches: [main]
-    paths:
-      - 'prisma/schema.prisma'
+  workflow_dispatch:  # Ручной запуск
 
 jobs:
   update-services:
@@ -29,4 +28,3 @@ jobs:
           git add database
           git diff --staged --quiet || git commit -m "Update database submodule"
           git push
-
