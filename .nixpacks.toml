@@ -1,0 +1,18 @@
+# Nixpacks конфигурация для Database Package
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "bun"]
+
+[phases.install]
+cmds = [
+  "bun install --frozen-lockfile"
+]
+
+[phases.build]
+cmds = [
+  "bun run db:generate"
+]
+
+[start]
+cmd = "echo 'Database package готов. Используйте db:push или db:migrate для применения схемы.'"
+

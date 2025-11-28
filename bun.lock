@@ -1,0 +1,31 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "@crm-autoservice/database",
+      "devDependencies": {
+        "@prisma/client": "5.7.0",
+        "prisma": "5.7.0",
+        "typescript": "^5.3.3",
+      },
+    },
+  },
+  "packages": {
+    "@prisma/client": ["@prisma/client@5.7.0", "", { "peerDependencies": { "prisma": "*" }, "optionalPeers": ["prisma"] }, "sha512-cZmglCrfNbYpzUtz7HscVHl38e9CrUs31nrVoGUK1nIPXGgt8hT4jj2s657UXcNdQ/jBUxDgGmHyu2Nyrq1txg=="],
+
+    "@prisma/debug": ["@prisma/debug@5.7.0", "", {}, "sha512-tZ+MOjWlVvz1kOEhNYMa4QUGURY+kgOUBqLHYIV8jmCsMuvA1tWcn7qtIMLzYWCbDcQT4ZS8xDgK0R2gl6/0wA=="],
+
+    "@prisma/engines": ["@prisma/engines@5.7.0", "", { "dependencies": { "@prisma/debug": "5.7.0", "@prisma/engines-version": "5.7.0-41.79fb5193cf0a8fdbef536e4b4a159cad677ab1b9", "@prisma/fetch-engine": "5.7.0", "@prisma/get-platform": "5.7.0" } }, "sha512-TkOMgMm60n5YgEKPn9erIvFX2/QuWnl3GBo6yTRyZKk5O5KQertXiNnrYgSLy0SpsKmhovEPQb+D4l0SzyE7XA=="],
+
+    "@prisma/engines-version": ["@prisma/engines-version@5.7.0-41.79fb5193cf0a8fdbef536e4b4a159cad677ab1b9", "", {}, "sha512-V6tgRVi62jRwTm0Hglky3Scwjr/AKFBFtS+MdbsBr7UOuiu1TKLPc6xfPiyEN1+bYqjEtjxwGsHgahcJsd1rNg=="],
+
+    "@prisma/fetch-engine": ["@prisma/fetch-engine@5.7.0", "", { "dependencies": { "@prisma/debug": "5.7.0", "@prisma/engines-version": "5.7.0-41.79fb5193cf0a8fdbef536e4b4a159cad677ab1b9", "@prisma/get-platform": "5.7.0" } }, "sha512-zIn/qmO+N/3FYe7/L9o+yZseIU8ivh4NdPKSkQRIHfg2QVTVMnbhGoTcecbxfVubeTp+DjcbjS0H9fCuM4W04w=="],
+
+    "@prisma/get-platform": ["@prisma/get-platform@5.7.0", "", { "dependencies": { "@prisma/debug": "5.7.0" } }, "sha512-ZeV/Op4bZsWXuw5Tg05WwRI8BlKiRFhsixPcAM+5BKYSiUZiMKIi713tfT3drBq8+T0E1arNZgYSA9QYcglWNA=="],
+
+    "prisma": ["prisma@5.7.0", "", { "dependencies": { "@prisma/engines": "5.7.0" }, "bin": { "prisma": "build/index.js" } }, "sha512-0rcfXO2ErmGAtxnuTNHQT9ztL0zZheQjOI/VNJzdq87C3TlGPQtMqtM+KCwU6XtmkoEr7vbCQqA7HF9IY0ST+Q=="],
+
+    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+  }
+}

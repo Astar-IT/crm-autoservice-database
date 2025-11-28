@@ -1,0 +1,32 @@
+name: Update Submodules in Services
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'prisma/schema.prisma'
+
+jobs:
+  update-services:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: [crm-autoservice-auth, crm-autoservice-api, crm-autoservice-web]
+    
+    steps:
+      - name: Checkout service repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ matrix.repo }}
+          token: ${{ secrets.GH_PAT }}
+          submodules: true
+      
+      - name: Update database submodule
+        run: |
+          git submodule update --remote database
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add database
+          git diff --staged --quiet || git commit -m "Update database submodule"
+          git push
+
