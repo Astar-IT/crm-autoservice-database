@@ -3,12 +3,13 @@ name: Update Submodules in Services
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # Ручной запуск
+  workflow_dispatch:
 
 jobs:
   update-services:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false  # Продолжать даже если один job упал
       matrix:
         repo: [crm-autoservice-auth, crm-autoservice-api, crm-autoservice-web]
     
@@ -18,13 +19,19 @@ jobs:
         with:
           repository: AlexKutepov/${{ matrix.repo }}
           token: ${{ secrets.GH_PAT }}
-          submodules: true
+          submodules: recursive
+          fetch-depth: 0
       
       - name: Update database submodule
         run: |
-          git submodule update --remote database
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
+          git submodule sync --recursive
+          git submodule update --init --remote database
           git add database
-          git diff --staged --quiet || git commit -m "Update database submodule"
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update database submodule"
+            git push
+          fi
