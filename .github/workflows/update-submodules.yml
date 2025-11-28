@@ -17,7 +17,7 @@ jobs:
       - name: Checkout service repo
         uses: actions/checkout@v4
         with:
-          repository: AlexKutepov/${{ matrix.repo }}
+          repository: ${{ github.repository_owner }}/${{ matrix.repo }}
           token: ${{ secrets.GH_PAT }}
           submodules: true
       
