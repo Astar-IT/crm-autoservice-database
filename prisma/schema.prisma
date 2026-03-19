@@ -20,23 +20,76 @@ model Tenant {
   isApproved  Boolean   @default(false) @map("is_approved")
   approvedBy   String?   @map("approved_by")
   approvedAt   DateTime? @map("approved_at")
+  // Реквизиты компании
+  legalName    String?   @map("legal_name")
+  inn          String?
+  kpp          String?
+  ogrn         String?
+  legalAddress String?   @map("legal_address")
+  actualAddress String?  @map("actual_address")
+  phone        String?
+  email        String?
+  website      String?
+  bankName     String?   @map("bank_name")
+  bik          String?
+  bankAccount  String?   @map("bank_account")
+  corrAccount  String?   @map("corr_account")
+  director     String?
+  // Подписка
+  subscriptionPlan  SubscriptionPlan @default(NONE) @map("subscription_plan")
+  subscriptionStart DateTime?        @map("subscription_start")
+  subscriptionEnd   DateTime?        @map("subscription_end")
+  isTrial           Boolean          @default(false) @map("is_trial")
+  trialEnd          DateTime?        @map("trial_end")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  users        User[]
-  orders       Order[]
-  clients      Client[]
-  vehicles     Vehicle[]
-  products     Product[]
-  warehouses   Warehouse[]
-  employees    Employee[]
-  services     Service[]
-  transactions Transaction[]
+  users            User[]
+  orders           Order[]
+  clients          Client[]
+  vehicles         Vehicle[]
+  products         Product[]
+  warehouses       Warehouse[]
+  employees        Employee[]
+  services         Service[]
+  transactions     Transaction[]
+  suppliers        Supplier[]
+  receipts         Receipt[]
+  transfers        Transfer[]
+  adjustments      Adjustment[]
+  supplierOrders   SupplierOrder[]
+  categories       Category[]
+  sales            Sale[]
+  salaryAccruals   SalaryAccrual[]
+  salaryPayments   SalaryPayment[]
+  discountCards    DiscountCard[]
+  // Настройки компании
+  cashboxes        Cashbox[]
+  customOrderStatuses CustomOrderStatus[]
+  posts            Post[]
+  ddsCategories    DdsCategory[]
+  ddsArticles      DdsArticle[]
+  priceTypes       PriceType[]
+  tenantSettings   TenantSettings?
+  subscriptionHistory SubscriptionHistory[]
+  rolePermissions  RolePermission[]
+  chats            Chat[]
+  orderLabels      OrderLabel[]
 
   @@index([slug])
   @@index([isActive])
   @@index([isApproved])
+  @@index([subscriptionPlan])
   @@map("tenants")
+}
+
+// Тарифные планы
+enum SubscriptionPlan {
+  NONE      // Нет подписки
+  START     // Старт - 3000₽/мес
+  BUSINESS  // Бизнес - 4000₽/мес
+  PREMIUM   // Премиум - 15000₽/мес
+  VIP       // VIP - 300000₽ бессрочно
 }
 
 // ============================================
@@ -52,21 +105,33 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  phone     String?
-  role      Role     @default(USER)
-  tenantId  String?  @map("tenant_id")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  password             String
+  name                 String?
+  phone                String?
+  role                 Role      @default(USER)
+  tenantId             String?   @map("tenant_id")
+  marketingConsent     Boolean   @default(false) @map("marketing_consent")
+  marketingConsentDate DateTime? @map("marketing_consent_date")
+  unsubscribeToken     String?   @unique @map("unsubscribe_token")
+  resetToken           String?   @unique @map("reset_token")
+  resetTokenExpiry     DateTime? @map("reset_token_expiry")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee      Employee?
+  transactions  Transaction[]
+  chatMembers   ChatMember[]
+  chatMessages  ChatMessage[]
+  orderComments OrderComment[]
 
   @@index([email])
   @@index([tenantId])
   @@index([role])
+  @@index([unsubscribeToken])
+  @@index([resetToken])
   @@map("users")
 }
 
@@ -75,38 +140,74 @@ model User {
 // ============================================
 
 model Client {
-  id        String    @id @default(uuid())
-  name      String
-  phone     String?
-  email     String?
-  address   String?
-  notes     String?
-  tenantId  String    @map("tenant_id")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  name            String
+  phone           String?
+  additionalPhone String?   @map("additional_phone")
+  email           String?
+  address         String?
+  notes           String?
+  categoryId      String?   @map("category_id")
+  tenantId        String    @map("tenant_id")
+  // Общие поля
+  birthDate       DateTime? @map("birth_date")
+  contactPerson   String?   @map("contact_person")
+  // Физ/Юрлицо
+  isLegalEntity   Boolean   @default(false) @map("is_legal_entity")
+  // Реквизиты юрлица
+  inn             String?
+  ogrn            String?
+  kpp             String?
+  legalAddress    String?   @map("legal_address")
+  actualAddress   String?   @map("actual_address")
+  bankName        String?   @map("bank_name")
+  bik             String?
+  bankAccount     String?   @map("bank_account")
+  corrAccount     String?   @map("corr_account")
+  // Паспортные данные (для физлица)
+  passportSeries  String?   @map("passport_series")
+  passportNumber  String?   @map("passport_number")
+  passportIssued  String?   @map("passport_issued")
+  passportDate    DateTime? @map("passport_date")
+  passportCode    String?   @map("passport_code")
+  passportPlace   String?   @map("passport_place")
+  //
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  vehicles Vehicle[]
-  orders   Order[]
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vehicles      Vehicle[]
+  orders        Order[]
+  sales         Sale[]
+  discountCards DiscountCard[]
+  transactions  Transaction[]
 
   @@index([tenantId])
   @@index([phone])
+  @@index([categoryId])
+  @@index([isLegalEntity])
   @@map("clients")
 }
 
 model Vehicle {
-  id           String   @id @default(uuid())
-  brand        String
-  model        String
-  year         Int?
-  vin          String?  @unique
-  licensePlate String?  @map("license_plate")
-  color        String?
-  mileage      Int?     @default(0)
-  clientId     String   @map("client_id")
-  tenantId     String   @map("tenant_id")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(uuid())
+  brand         String
+  model         String
+  year          Int?
+  vin           String?  @unique
+  licensePlate  String?  @map("license_plate")
+  color         String?
+  mileage       Int?     @default(0)
+  bodyNumber    String?  @map("body_number")      // Номер кузова
+  engineNumber  String?  @map("engine_number")    // Номер двигателя
+  engineVolume  String?  @map("engine_volume")    // Объем двигателя
+  chassisNumber String?  @map("chassis_number")   // Номер шасси
+  pts           String?                            // ПТС
+  clientId      String   @map("client_id")
+  tenantId      String   @map("tenant_id")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   client Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -119,11 +220,49 @@ model Vehicle {
 }
 
 // ============================================
+// КАТЕГОРИИ (универсальные)
+// ============================================
+
+enum CategoryType {
+  CLIENT
+  PRODUCT
+  SERVICE
+  SUPPLIER
+}
+
+model Category {
+  id        String       @id @default(uuid())
+  name      String
+  type      CategoryType
+  parentId  String?      @map("parent_id")
+  tenantId  String       @map("tenant_id")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryToCategory")
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  clients  Client[]
+  products Product[]
+  services Service[]
+  suppliers Supplier[]
+
+  @@unique([tenantId, type, name], map: "tenantId_type_name")
+  @@index([tenantId])
+  @@index([type])
+  @@index([parentId])
+  @@map("categories")
+}
+
+// ============================================
 // ЗАКАЗЫ
 // ============================================
 
 enum OrderStatus {
   DRAFT
+  PENDING
+  WAITING_PARTS
   IN_PROGRESS
   COMPLETED
   CANCELLED
@@ -137,26 +276,148 @@ enum Priority {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  number      String      @unique
-  status      OrderStatus @default(DRAFT)
-  priority    Priority    @default(MEDIUM)
-  description String?
-  clientId    String      @map("client_id")
-  vehicleId   String      @map("vehicle_id")
-  tenantId    String      @map("tenant_id")
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  completedAt DateTime?   @map("completed_at")
+  id                    String      @id @default(uuid())
+  number                String      @unique
+  status                OrderStatus @default(DRAFT)
+  priority              Priority    @default(MEDIUM)
+  description           String?
+  totalAmount           Decimal?    @db.Decimal(10, 2) @map("total_amount")
+  paidAmount            Decimal?    @db.Decimal(10, 2) @map("paid_amount") @default(0)
+  mileage               Int?                            // Пробег на момент обращения
+  clientId              String      @map("client_id")
+  vehicleId             String      @map("vehicle_id")
+  employeeId            String?     @map("employee_id")              // Механик/исполнитель
+  responsibleEmployeeId String?     @map("responsible_employee_id")  // Ответственный менеджер
+  tenantId              String      @map("tenant_id")
+  startedAt             DateTime?   @map("started_at")
+  completedAt           DateTime?   @map("completed_at")
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 
-  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vehicle             Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  employee            Employee? @relation(fields: [employeeId], references: [id])
+  responsibleEmployee Employee? @relation("ResponsibleEmployee", fields: [responsibleEmployeeId], references: [id])
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  orderItems     OrderItem[]
+  orderServices  OrderService[]
+  salaryAccruals SalaryAccrual[]
+  comments       OrderComment[]
+  checklists     OrderChecklist[]
+  labels         OrderLabelLink[]
+  chats          Chat[]
 
   @@index([tenantId])
   @@index([status])
   @@index([clientId])
+  @@index([employeeId])
+  @@index([responsibleEmployeeId])
   @@map("orders")
+}
+
+model OrderComment {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  userId    String   @map("user_id")
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_comments")
+}
+
+model OrderChecklist {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  title     String   @default("Чеклист")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items OrderChecklistItem[]
+
+  @@index([orderId])
+  @@map("order_checklists")
+}
+
+model OrderChecklistItem {
+  id          String   @id @default(uuid())
+  checklistId String   @map("checklist_id")
+  text        String
+  isCompleted Boolean  @default(false) @map("is_completed")
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  checklist OrderChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+  @@map("order_checklist_items")
+}
+
+model OrderLabel {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  color     String   @default("#3B82F6")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders OrderLabelLink[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("order_labels")
+}
+
+model OrderLabelLink {
+  id       String @id @default(uuid())
+  orderId  String @map("order_id")
+  labelId  String @map("label_id")
+
+  order Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  label OrderLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, labelId])
+  @@map("order_label_links")
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  productId String   @map("product_id")
+  quantity  Decimal  @db.Decimal(12, 5)
+  price     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderService {
+  id           String   @id @default(uuid())
+  orderId      String   @map("order_id")
+  serviceId    String   @map("service_id")
+  quantity     Decimal  @default(1) @db.Decimal(12, 5)
+  price        Decimal  @db.Decimal(10, 2)
+  employeeId   String?  @map("employee_id")     // Исполнитель работы
+  salaryAmount Decimal? @db.Decimal(10, 2) @map("salary_amount") // Начисление зарплаты за работу
+  createdAt    DateTime @default(now())
+
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service        Service         @relation(fields: [serviceId], references: [id])
+  employee       Employee?       @relation(fields: [employeeId], references: [id])
+  salaryAccruals SalaryAccrual[]
+
+  @@index([orderId])
+  @@index([employeeId])
+  @@map("order_services")
 }
 
 // ============================================
@@ -171,32 +432,307 @@ model Warehouse {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  products Product[]
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products    Product[]
+  receiptsTo  Receipt[]  @relation("ReceiptWarehouse")
+  transfersFrom Transfer[] @relation("TransferFrom")
+  transfersTo   Transfer[] @relation("TransferTo")
+  adjustments   Adjustment[]
 
   @@index([tenantId])
   @@map("warehouses")
 }
 
 model Product {
-  id          String    @id @default(uuid())
-  name        String
-  sku         String?   @unique
-  description String?
-  price       Decimal   @db.Decimal(10, 2)
-  quantity    Int       @default(0)
-  warehouseId String    @map("warehouse_id")
-  tenantId    String    @map("tenant_id")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  name          String
+  sku           String?   @unique
+  oem           String?                       // Номер детали (OEM)
+  barcode       String?                       // Штрихкод
+  description   String?
+  price         Decimal   @db.Decimal(10, 2)
+  costPrice     Decimal?  @db.Decimal(10, 2) @map("cost_price")
+  quantity      Decimal   @default(0) @db.Decimal(12, 5)   // Дробное кол-во (пленка в м, химия в мл)
+  minQuantity   Decimal?  @default(0) @db.Decimal(12, 5) @map("min_quantity")
+  unit          String?   @default("шт.")     // Ед. измерения
+  manufacturer  String?                       // Производитель
+  productType   String?   @map("product_type") // Тип: Товар, Услуга
+  taxSystem     String?   @map("tax_system")   // Система налогообложения
+  isQuickAccess Boolean   @default(false) @map("is_quick_access") // Быстрый доступ в заказ-наряде
+  categoryId    String?   @map("category_id")
+  warehouseId   String    @map("warehouse_id")
+  tenantId      String    @map("tenant_id")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  warehouse          Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderItems         OrderItem[]
+  receiptItems       ReceiptItem[]
+  transferItems      TransferItem[]
+  adjustmentItems    AdjustmentItem[]
+  saleItems          SaleItem[]
+  supplierOrderItems SupplierOrderItem[]
 
   @@index([tenantId])
   @@index([warehouseId])
+  @@index([categoryId])
   @@index([sku])
+  @@index([oem])
+  @@index([barcode])
+  @@index([isQuickAccess])
   @@map("products")
+}
+
+// ============================================
+// ПОСТАВЩИКИ
+// ============================================
+
+model Supplier {
+  id              String   @id @default(uuid())
+  name            String
+  phone           String?
+  additionalPhone String?  @map("additional_phone")
+  email           String?
+  address         String?
+  notes           String?
+  contactPerson   String?  @map("contact_person")
+  // Реквизиты
+  inn             String?
+  ogrn            String?
+  kpp             String?
+  legalAddress    String?  @map("legal_address")
+  bankName        String?  @map("bank_name")
+  bik             String?
+  bankAccount     String?  @map("bank_account")
+  corrAccount     String?  @map("corr_account")
+  //
+  categoryId      String?  @map("category_id")
+  tenantId        String   @map("tenant_id")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receipts       Receipt[]
+  supplierOrders SupplierOrder[]
+
+  @@index([tenantId])
+  @@index([categoryId])
+  @@index([inn])
+  @@map("suppliers")
+}
+
+// ============================================
+// ПОСТУПЛЕНИЯ НА СКЛАД
+// ============================================
+
+model Receipt {
+  id          String   @id @default(uuid())
+  number      String
+  supplierId  String?  @map("supplier_id")
+  warehouseId String   @map("warehouse_id")
+  totalAmount Decimal  @db.Decimal(10, 2) @map("total_amount")
+  notes       String?
+  tenantId    String   @map("tenant_id")
+  receivedAt  DateTime @default(now()) @map("received_at")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier  Supplier?     @relation(fields: [supplierId], references: [id])
+  warehouse Warehouse     @relation("ReceiptWarehouse", fields: [warehouseId], references: [id])
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items     ReceiptItem[]
+
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([warehouseId])
+  @@map("receipts")
+}
+
+model ReceiptItem {
+  id        String  @id @default(uuid())
+  receiptId String  @map("receipt_id")
+  productId String  @map("product_id")
+  quantity  Decimal @db.Decimal(12, 5)
+  price     Decimal @db.Decimal(10, 2)
+
+  receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([receiptId])
+  @@map("receipt_items")
+}
+
+// ============================================
+// ПЕРЕМЕЩЕНИЯ МЕЖДУ СКЛАДАМИ
+// ============================================
+
+model Transfer {
+  id              String   @id @default(uuid())
+  number          String
+  fromWarehouseId String   @map("from_warehouse_id")
+  toWarehouseId   String   @map("to_warehouse_id")
+  notes           String?
+  tenantId        String   @map("tenant_id")
+  transferredAt   DateTime @default(now()) @map("transferred_at")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fromWarehouse Warehouse      @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse      @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items         TransferItem[]
+
+  @@index([tenantId])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@map("transfers")
+}
+
+model TransferItem {
+  id         String  @id @default(uuid())
+  transferId String  @map("transfer_id")
+  productId  String  @map("product_id")
+  quantity   Decimal @db.Decimal(12, 5)
+
+  transfer Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@index([transferId])
+  @@map("transfer_items")
+}
+
+// ============================================
+// КОРРЕКТИРОВКИ СКЛАДА
+// ============================================
+
+enum AdjustmentType {
+  INCREASE
+  DECREASE
+}
+
+model Adjustment {
+  id          String         @id @default(uuid())
+  number      String
+  type        AdjustmentType
+  warehouseId String         @map("warehouse_id")
+  reason      String?
+  tenantId    String         @map("tenant_id")
+  adjustedAt  DateTime       @default(now()) @map("adjusted_at")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  warehouse Warehouse        @relation(fields: [warehouseId], references: [id])
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items     AdjustmentItem[]
+
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("adjustments")
+}
+
+model AdjustmentItem {
+  id           String  @id @default(uuid())
+  adjustmentId String  @map("adjustment_id")
+  productId    String  @map("product_id")
+  quantity     Decimal @db.Decimal(12, 5)
+
+  adjustment Adjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id])
+
+  @@index([adjustmentId])
+  @@map("adjustment_items")
+}
+
+// ============================================
+// ЗАКАЗЫ ПОСТАВЩИКАМ
+// ============================================
+
+enum SupplierOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  SHIPPED
+  RECEIVED
+  CANCELLED
+}
+
+model SupplierOrder {
+  id          String              @id @default(uuid())
+  number      String
+  supplierId  String              @map("supplier_id")
+  status      SupplierOrderStatus @default(DRAFT)
+  totalAmount Decimal             @db.Decimal(10, 2) @map("total_amount")
+  notes       String?
+  tenantId    String              @map("tenant_id")
+  orderedAt   DateTime            @default(now()) @map("ordered_at")
+  expectedAt  DateTime?           @map("expected_at")
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items    SupplierOrderItem[]
+
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([status])
+  @@map("supplier_orders")
+}
+
+model SupplierOrderItem {
+  id              String  @id @default(uuid())
+  supplierOrderId String  @map("supplier_order_id")
+  productId       String  @map("product_id")
+  quantity        Decimal @db.Decimal(12, 5)
+  price           Decimal @db.Decimal(10, 2)
+
+  supplierOrder SupplierOrder @relation(fields: [supplierOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@index([supplierOrderId])
+  @@map("supplier_order_items")
+}
+
+// ============================================
+// ПРОДАЖИ
+// ============================================
+
+model Sale {
+  id          String   @id @default(uuid())
+  number      String
+  clientId    String?  @map("client_id")
+  totalAmount Decimal  @db.Decimal(10, 2) @map("total_amount")
+  paidAmount  Decimal  @db.Decimal(10, 2) @map("paid_amount") @default(0)
+  notes       String?
+  tenantId    String   @map("tenant_id")
+  soldAt      DateTime @default(now()) @map("sold_at")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client Client?    @relation(fields: [clientId], references: [id])
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  SaleItem[]
+
+  @@index([tenantId])
+  @@index([clientId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String  @map("sale_id")
+  productId String  @map("product_id")
+  quantity  Decimal @db.Decimal(12, 5)
+  price     Decimal @db.Decimal(10, 2)
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([saleId])
+  @@map("sale_items")
 }
 
 // ============================================
@@ -204,20 +740,132 @@ model Product {
 // ============================================
 
 model Employee {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String?
-  email     String?
-  position  String?
-  salary    Decimal? @db.Decimal(10, 2)
-  tenantId  String   @map("tenant_id")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(uuid())
+  name            String
+  phone           String?
+  additionalPhone String?   @map("additional_phone")
+  email           String?
+  position        String?
+  salary          Decimal?  @db.Decimal(10, 2)
+  birthDate       DateTime? @map("birth_date")
+  hiredAt         DateTime? @map("hired_at")
+  address         String?
+  contactPerson   String?   @map("contact_person")
+  notes           String?
+  // Паспортные данные
+  passportSeries  String?   @map("passport_series")
+  passportNumber  String?   @map("passport_number")
+  passportIssued  String?   @map("passport_issued")
+  passportDate    DateTime? @map("passport_date")
+  passportCode    String?   @map("passport_code")
+  //
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  tenantId        String    @map("tenant_id")
+  userId          String?   @unique @map("user_id")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orders         Order[]
+  responsibleOrders Order[]      @relation("ResponsibleEmployee")
+  salaryAccruals SalaryAccrual[]
+  salaryPayments SalaryPayment[]
+  transactions   Transaction[]
+  orderServices  OrderService[]
 
   @@index([tenantId])
+  @@index([isDeleted])
+  @@index([userId])
   @@map("employees")
+}
+
+// ============================================
+// НАЧИСЛЕНИЯ И ВЫПЛАТЫ ЗАРПЛАТЫ
+// ============================================
+
+enum SalaryAccrualType {
+  MANUAL            // Ручное начисление
+  BY_WORK           // По выполненной работе
+  BY_ORDER          // По заказ-наряду
+  PERCENT_RESPONSIBLE // % от суммы услуг ответственного
+}
+
+model SalaryAccrual {
+  id             String            @id @default(uuid())
+  employeeId     String            @map("employee_id")
+  amount         Decimal           @db.Decimal(10, 2)
+  description    String?
+  period         String            // формат: "2024-01"
+  accrualType    SalaryAccrualType @default(MANUAL) @map("accrual_type")
+  orderId        String?           @map("order_id")         // Связь с заказ-нарядом
+  orderServiceId String?           @map("order_service_id") // Связь с конкретной работой
+  tenantId       String            @map("tenant_id")
+  accruedAt      DateTime          @default(now()) @map("accrued_at")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  employee     Employee      @relation(fields: [employeeId], references: [id])
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order        Order?        @relation(fields: [orderId], references: [id])
+  orderService OrderService? @relation(fields: [orderServiceId], references: [id])
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([period])
+  @@index([orderId])
+  @@map("salary_accruals")
+}
+
+model SalaryPayment {
+  id          String   @id @default(uuid())
+  employeeId  String   @map("employee_id")
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  tenantId    String   @map("tenant_id")
+  paidAt      DateTime @default(now()) @map("paid_at")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("salary_payments")
+}
+
+// ============================================
+// ДИСКОНТНЫЕ КАРТЫ
+// ============================================
+
+enum DiscountCardType {
+  FIXED         // Фиксированная скидка
+  ACCUMULATIVE  // Накопительная
+}
+
+model DiscountCard {
+  id                    String           @id @default(uuid())
+  number                String
+  name                  String?                                          // Название типа карты (напр. "Почетный клиент")
+  type                  DiscountCardType @default(FIXED)                 // Тип: фиксированная / накопительная
+  clientId              String           @map("client_id")
+  discountPercent       Decimal          @db.Decimal(5, 2) @map("discount_percent")       // Общая скидка (обратная совместимость)
+  discountWorkPercent   Decimal?         @db.Decimal(5, 2) @map("discount_work_percent")  // Скидка на работы/услуги
+  discountProductPercent Decimal?        @db.Decimal(5, 2) @map("discount_product_percent") // Скидка на товары
+  balance               Decimal          @default(0) @db.Decimal(10, 2)                   // Накопленный баланс
+  isActive              Boolean          @default(true) @map("is_active")
+  tenantId              String           @map("tenant_id")
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([number, tenantId])
+  @@index([tenantId])
+  @@index([clientId])
+  @@map("discount_cards")
 }
 
 // ============================================
@@ -225,23 +873,35 @@ model Employee {
 // ============================================
 
 model Service {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  price       Decimal  @db.Decimal(10, 2)
-  duration    Int?     @default(60)
-  tenantId    String   @map("tenant_id")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  code          String?                       // Код работы
+  description   String?
+  price         Decimal  @db.Decimal(10, 2)
+  duration      Int?     @default(60)
+  taxSystem     String?  @map("tax_system")   // Система налогообложения
+  isQuickAccess Boolean  @default(false) @map("is_quick_access") // Быстрый доступ в заказ-наряде
+  // Зарплата
+  salaryType    String?  @map("salary_type")  // Тип начисления: fixed, percent
+  salaryAmount  Decimal? @db.Decimal(10, 2) @map("salary_amount") // Сумма/процент
+  categoryId    String?  @map("category_id")
+  tenantId      String   @map("tenant_id")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderServices OrderService[]
 
   @@index([tenantId])
+  @@index([categoryId])
+  @@index([code])
+  @@index([isQuickAccess])
   @@map("services")
 }
 
 // ============================================
-// ТРАНЗАКЦИИ
+// ТРАНЗАКЦИИ (ДЕНЬГИ)
 // ============================================
 
 enum TransactionType {
@@ -250,18 +910,304 @@ enum TransactionType {
 }
 
 model Transaction {
-  id          String          @id @default(uuid())
-  type        TransactionType
-  amount      Decimal         @db.Decimal(10, 2)
-  description String?
-  tenantId    String          @map("tenant_id")
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id             String          @id @default(uuid())
+  externalId     String?         @map("external_id")
+  type           TransactionType
+  amount         Decimal         @db.Decimal(10, 2)
+  description    String?
+  category       String?         // статья ДДС (текстовая, обратная совместимость)
+  documentNumber String?         @map("document_number")   // Номер документа (напр. "Приходный ордер №6093")
+  tax            Decimal?        @db.Decimal(10, 2)        // Сумма налога
+  cashboxId      String?         @map("cashbox_id")        // Касса
+  clientId       String?         @map("client_id")         // Контрагент-клиент
+  employeeId     String?         @map("employee_id")       // Контрагент-сотрудник
+  ddsArticleId   String?         @map("dds_article_id")    // Статья ДДС (связь)
+  createdById    String?         @map("created_by_id")     // Кто создал
+  tenantId       String          @map("tenant_id")
+  transactedAt   DateTime        @default(now()) @map("transacted_at")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cashbox    Cashbox?    @relation(fields: [cashboxId], references: [id])
+  client     Client?     @relation(fields: [clientId], references: [id])
+  employee   Employee?   @relation(fields: [employeeId], references: [id])
+  ddsArticle DdsArticle? @relation(fields: [ddsArticleId], references: [id])
+  createdBy  User?       @relation(fields: [createdById], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, externalId])
+  @@index([type])
+  @@index([transactedAt])
+  @@index([cashboxId])
+  @@index([clientId])
+  @@index([employeeId])
+  @@map("transactions")
+}
+
+// ============================================
+// НАСТРОЙКИ КОМПАНИИ
+// ============================================
+
+model Cashbox {
+  id        String   @id @default(uuid())
+  name      String
+  balance   Decimal  @default(0) @db.Decimal(10, 2) // Текущий баланс кассы
+  isActive  Boolean  @default(true) @map("is_active")
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([tenantId])
+  @@map("cashboxes")
+}
+
+model CustomOrderStatus {
+  id         String   @id @default(uuid())
+  name       String
+  position   Int      @default(0)
+  color      String   @default("#ffffff")
+  textColor  String   @default("#000000") @map("text_color")
+  baseStatus String   @default("DRAFT") @map("base_status")
+  tenantId   String   @map("tenant_id")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
-  @@index([type])
-  @@map("transactions")
+  @@index([position])
+  @@map("custom_order_statuses")
 }
 
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("posts")
+}
+
+model DdsCategory {
+  id        String   @id @default(uuid())
+  name      String
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  articles DdsArticle[]
+
+  @@index([tenantId])
+  @@map("dds_categories")
+}
+
+model DdsArticle {
+  id         String   @id @default(uuid())
+  name       String
+  categoryId String   @map("category_id")
+  tenantId   String   @map("tenant_id")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category     DdsCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([tenantId])
+  @@index([categoryId])
+  @@map("dds_articles")
+}
+
+model PriceType {
+  id            String   @id @default(uuid())
+  name          String
+  markupPercent Decimal  @default(0) @map("markup_percent") @db.Decimal(5, 2)
+  tenantId      String   @map("tenant_id")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("price_types")
+}
+
+model TenantSettings {
+  id                              String   @id @default(uuid())
+  tenantId                        String   @unique @map("tenant_id")
+  salesVat                        String?  @map("sales_vat")
+  purchaseVat                     String?  @map("purchase_vat")
+  recordsPerPage                  Int      @default(100) @map("records_per_page")
+  workdayStartTime                String?  @map("workday_start_time")
+  workdayEndTime                  String?  @map("workday_end_time")
+  weekendStartTime                String?  @map("weekend_start_time")
+  weekendEndTime                  String?  @map("weekend_end_time")
+  defaultOrderLifetime            Int      @default(0) @map("default_order_lifetime")
+  deductMaterialsCost             Boolean  @default(false) @map("deduct_materials_cost")
+  includeMaterialsInOrderCost     Boolean  @default(false) @map("include_materials_in_order_cost")
+  includeDiscountInSalaryCalculation Boolean @default(false) @map("include_discount_in_salary_calculation")
+  showProductNumbersOnPrint       Boolean  @default(false) @map("show_product_numbers_on_print")
+  showBrandOnPrint                Boolean  @default(false) @map("show_brand_on_print")
+  enableCustomerSupport           Boolean  @default(true) @map("enable_customer_support")
+  enableConcurrentWorkControl     Boolean  @default(true) @map("enable_concurrent_work_control")
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_settings")
+}
+
+// ============================================
+// НАСТРАИВАЕМЫЕ ПРАВА РОЛЕЙ
+// ============================================
+
+model RolePermission {
+  id         String   @id @default(uuid())
+  role       Role
+  resource   String   // Ресурс: orders, clients, vehicles, warehouse, products, services, employees, finance, reports, settings
+  action     String   // Действие: view, create, edit, delete, export, import
+  allowed    Boolean  @default(false)
+  tenantId   String   @map("tenant_id")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, role, resource, action])
+  @@index([tenantId])
+  @@index([role])
+  @@map("role_permissions")
+}
+
+// История подписок и платежей
+model SubscriptionHistory {
+  id           String           @id @default(uuid())
+  tenantId     String           @map("tenant_id")
+  plan         SubscriptionPlan
+  action       SubscriptionAction
+  amount       Decimal?         @db.Decimal(10, 2)
+  startDate    DateTime?        @map("start_date")
+  endDate      DateTime?        @map("end_date")
+  assignedBy   String?          @map("assigned_by") // ID супер-админа
+  notes        String?
+  createdAt    DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("subscription_history")
+}
+
+enum SubscriptionAction {
+  PURCHASED      // Куплена подписка
+  RENEWED        // Продлена подписка
+  UPGRADED       // Повышение тарифа
+  DOWNGRADED     // Понижение тарифа
+  TRIAL_STARTED  // Начат пробный период
+  TRIAL_ENDED    // Пробный период закончился
+  CANCELLED      // Отменена
+  ASSIGNED       // Назначена супер-админом
+  EXPIRED        // Истекла
+}
+
+// ============================================
+// СПРАВОЧНИК МАРОК И МОДЕЛЕЙ ТС (глобальный)
+// ============================================
+
+model VehicleBrand {
+  id           Int      @id
+  name         String
+  nameCyrillic String?  @map("name_cyrillic")
+  popularity   Int      @default(0)
+  country      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  models VehicleModel[]
+
+  @@index([name])
+  @@index([popularity(sort: Desc)])
+  @@map("vehicles_brands")
+}
+
+model VehicleModel {
+  id           Int      @id
+  brandId      Int      @map("brand_id")
+  name         String
+  nameCyrillic String?  @map("name_cyrillic")
+  category     String?
+  class        String?
+  yearFrom     Int?     @map("year_from")
+  yearTo       Int?     @map("year_to")
+  popularity   Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  brand VehicleBrand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@index([name])
+  @@index([popularity(sort: Desc)])
+  @@map("vehicles_models")
+}
+
+// ============================================
+// ЧАТЫ (внутренний мессенджер)
+// ============================================
+
+model Chat {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  name        String?
+  isGroup     Boolean   @default(false) @map("is_group")
+  orderId     String?   @map("order_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order       Order?       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  members     ChatMember[]
+  messages    ChatMessage[]
+
+  @@index([tenantId])
+  @@index([orderId])
+  @@map("chats")
+}
+
+model ChatMember {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  userId    String   @map("user_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@map("chat_members")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  senderId  String   @map("sender_id")
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@map("chat_messages")
+}
