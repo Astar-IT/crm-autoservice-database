@@ -20,21 +20,6 @@ model Tenant {
   isApproved  Boolean   @default(false) @map("is_approved")
   approvedBy   String?   @map("approved_by")
   approvedAt   DateTime? @map("approved_at")
-  // Реквизиты компании
-  legalName    String?   @map("legal_name")
-  inn          String?
-  kpp          String?
-  ogrn         String?
-  legalAddress String?   @map("legal_address")
-  actualAddress String?  @map("actual_address")
-  phone        String?
-  email        String?
-  website      String?
-  bankName     String?   @map("bank_name")
-  bik          String?
-  bankAccount  String?   @map("bank_account")
-  corrAccount  String?   @map("corr_account")
-  director     String?
   // Подписка
   subscriptionPlan  SubscriptionPlan @default(NONE) @map("subscription_plan")
   subscriptionStart DateTime?        @map("subscription_start")
@@ -74,6 +59,8 @@ model Tenant {
   subscriptionHistory SubscriptionHistory[]
   rolePermissions  RolePermission[]
   chats            Chat[]
+  orderStatusRules OrderStatusRule[]
+  auditLogs        AuditLog[]
   orderLabels      OrderLabel[]
 
   @@index([slug])
@@ -170,7 +157,6 @@ model Client {
   passportIssued  String?   @map("passport_issued")
   passportDate    DateTime? @map("passport_date")
   passportCode    String?   @map("passport_code")
-  passportPlace   String?   @map("passport_place")
   //
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -248,7 +234,6 @@ model Category {
   services Service[]
   suppliers Supplier[]
 
-  @@unique([tenantId, type, name], map: "tenantId_type_name")
   @@index([tenantId])
   @@index([type])
   @@index([parentId])
@@ -277,112 +262,53 @@ enum Priority {
 
 model Order {
   id                    String      @id @default(uuid())
-  number                String      @unique
+  number                String
   status                OrderStatus @default(DRAFT)
+  customStatusId        String?     @map("custom_status_id")
   priority              Priority    @default(MEDIUM)
   description           String?
   totalAmount           Decimal?    @db.Decimal(10, 2) @map("total_amount")
   paidAmount            Decimal?    @db.Decimal(10, 2) @map("paid_amount") @default(0)
-  mileage               Int?                            // Пробег на момент обращения
+  mileage               Int?
+  complexity            String?
+  adSource              String?     @map("ad_source")
+  visitReason           String?     @map("visit_reason")
+  recommendations       String?
+  duration              Int?
+  postId                String?     @map("post_id")
   clientId              String      @map("client_id")
   vehicleId             String      @map("vehicle_id")
-  employeeId            String?     @map("employee_id")              // Механик/исполнитель
-  responsibleEmployeeId String?     @map("responsible_employee_id")  // Ответственный менеджер
+  employeeId            String?     @map("employee_id")
+  responsibleEmployeeId String?     @map("responsible_employee_id")
   tenantId              String      @map("tenant_id")
   startedAt             DateTime?   @map("started_at")
   completedAt           DateTime?   @map("completed_at")
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
-  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  vehicle             Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  employee            Employee? @relation(fields: [employeeId], references: [id])
-  responsibleEmployee Employee? @relation("ResponsibleEmployee", fields: [responsibleEmployeeId], references: [id])
-  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+  client              Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vehicle             Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  employee            Employee?            @relation(fields: [employeeId], references: [id])
+  responsibleEmployee Employee?            @relation("ResponsibleEmployee", fields: [responsibleEmployeeId], references: [id])
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  post                Post?                @relation(fields: [postId], references: [id])
+  customStatus        CustomOrderStatus?   @relation(fields: [customStatusId], references: [id], onDelete: SetNull)
+
   orderItems     OrderItem[]
   orderServices  OrderService[]
   salaryAccruals SalaryAccrual[]
+  history        OrderHistory[]
   comments       OrderComment[]
   checklists     OrderChecklist[]
   labels         OrderLabelLink[]
-  chats          Chat[]
 
   @@index([tenantId])
   @@index([status])
+  @@index([customStatusId])
   @@index([clientId])
   @@index([employeeId])
   @@index([responsibleEmployeeId])
   @@map("orders")
-}
-
-model OrderComment {
-  id        String   @id @default(uuid())
-  orderId   String   @map("order_id")
-  userId    String   @map("user_id")
-  text      String
-  createdAt DateTime @default(now()) @map("created_at")
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([orderId, createdAt])
-  @@map("order_comments")
-}
-
-model OrderChecklist {
-  id        String   @id @default(uuid())
-  orderId   String   @map("order_id")
-  title     String   @default("Чеклист")
-  position  Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  order Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  items OrderChecklistItem[]
-
-  @@index([orderId])
-  @@map("order_checklists")
-}
-
-model OrderChecklistItem {
-  id          String   @id @default(uuid())
-  checklistId String   @map("checklist_id")
-  text        String
-  isCompleted Boolean  @default(false) @map("is_completed")
-  position    Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  checklist OrderChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-
-  @@index([checklistId])
-  @@map("order_checklist_items")
-}
-
-model OrderLabel {
-  id        String   @id @default(uuid())
-  tenantId  String   @map("tenant_id")
-  name      String
-  color     String   @default("#3B82F6")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orders OrderLabelLink[]
-
-  @@unique([tenantId, name])
-  @@index([tenantId])
-  @@map("order_labels")
-}
-
-model OrderLabelLink {
-  id       String @id @default(uuid())
-  orderId  String @map("order_id")
-  labelId  String @map("label_id")
-
-  order Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  label OrderLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-  @@unique([orderId, labelId])
-  @@map("order_label_links")
 }
 
 model OrderItem {
@@ -418,6 +344,88 @@ model OrderService {
   @@index([orderId])
   @@index([employeeId])
   @@map("order_services")
+}
+
+model OrderHistory {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  userId    String?  @map("user_id")
+  userName  String?  @map("user_name")
+  action    String
+  field     String?
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_history")
+}
+
+model OrderComment {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  userId    String   @map("user_id")
+  text      String
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@map("order_comments")
+}
+
+model OrderChecklist {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  name      String
+  createdAt DateTime @default(now())
+
+  order Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items OrderChecklistItem[]
+
+  @@index([orderId])
+  @@map("order_checklists")
+}
+
+model OrderChecklistItem {
+  id          String   @id @default(uuid())
+  checklistId String   @map("checklist_id")
+  text        String
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  checklist OrderChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+  @@map("order_checklist_items")
+}
+
+model OrderLabel {
+  id       String @id @default(uuid())
+  name     String
+  color    String @default("#3B82F6")
+  tenantId String @map("tenant_id")
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  links  OrderLabelLink[]
+
+  @@index([tenantId])
+  @@map("order_labels")
+}
+
+model OrderLabelLink {
+  id       String @id @default(uuid())
+  orderId  String @map("order_id")
+  labelId  String @map("label_id")
+
+  order Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  label OrderLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, labelId])
+  @@map("order_label_links")
 }
 
 // ============================================
@@ -911,7 +919,6 @@ enum TransactionType {
 
 model Transaction {
   id             String          @id @default(uuid())
-  externalId     String?         @map("external_id")
   type           TransactionType
   amount         Decimal         @db.Decimal(10, 2)
   description    String?
@@ -936,7 +943,6 @@ model Transaction {
   createdBy  User?       @relation(fields: [createdById], references: [id])
 
   @@index([tenantId])
-  @@index([tenantId, externalId])
   @@index([type])
   @@index([transactedAt])
   @@index([cashboxId])
@@ -965,6 +971,23 @@ model Cashbox {
   @@map("cashboxes")
 }
 
+model OrderStatusRule {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  name         String
+  fromStatus   String   @map("from_status")
+  toStatus     String   @map("to_status")
+  condition    String   @default("manual")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("order_status_rules")
+}
+
 model CustomOrderStatus {
   id         String   @id @default(uuid())
   name       String
@@ -977,6 +1000,7 @@ model CustomOrderStatus {
   updatedAt  DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders Order[]
 
   @@index([tenantId])
   @@index([position])
@@ -990,7 +1014,8 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders Order[]
 
   @@index([tenantId])
   @@map("posts")
@@ -1044,6 +1069,7 @@ model PriceType {
 model TenantSettings {
   id                              String   @id @default(uuid())
   tenantId                        String   @unique @map("tenant_id")
+  legalType                       String?  @map("legal_type")
   salesVat                        String?  @map("sales_vat")
   purchaseVat                     String?  @map("purchase_vat")
   recordsPerPage                  Int      @default(100) @map("records_per_page")
@@ -1171,17 +1197,14 @@ model Chat {
   tenantId    String    @map("tenant_id")
   name        String?
   isGroup     Boolean   @default(false) @map("is_group")
-  orderId     String?   @map("order_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  order       Order?       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   members     ChatMember[]
   messages    ChatMessage[]
 
   @@index([tenantId])
-  @@index([orderId])
   @@map("chats")
 }
 
@@ -1210,4 +1233,24 @@ model ChatMessage {
 
   @@index([chatId, createdAt])
   @@map("chat_messages")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  userId     String?  @map("user_id")
+  userName   String?  @map("user_name")
+  action     String
+  entity     String
+  entityId   String?  @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([userId])
+  @@index([entity])
+  @@map("audit_logs")
 }
