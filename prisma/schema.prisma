@@ -281,6 +281,8 @@ model Order {
   employeeId            String?     @map("employee_id")
   responsibleEmployeeId String?     @map("responsible_employee_id")
   tenantId              String      @map("tenant_id")
+  plannedStartDate      DateTime?   @map("planned_start_date")
+  plannedEndDate        DateTime?   @map("planned_end_date")
   startedAt             DateTime?   @map("started_at")
   completedAt           DateTime?   @map("completed_at")
   createdAt             DateTime    @default(now())
