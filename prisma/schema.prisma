@@ -62,6 +62,7 @@ model Tenant {
   orderStatusRules OrderStatusRule[]
   auditLogs        AuditLog[]
   orderLabels      OrderLabel[]
+  workSchedules    WorkSchedule[]
 
   @@index([slug])
   @@index([isActive])
@@ -784,10 +785,37 @@ model Employee {
   transactions   Transaction[]
   orderServices  OrderService[]
 
+  workSchedules  WorkSchedule[]
+
   @@index([tenantId])
   @@index([isDeleted])
   @@index([userId])
   @@map("employees")
+}
+
+// ============================================
+// ГРАФИК РАБОТЫ
+// ============================================
+
+model WorkSchedule {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  tenantId   String   @map("tenant_id")
+  date       DateTime @db.Date
+  startTime  String?  @map("start_time")
+  endTime    String?  @map("end_time")
+  isDayOff   Boolean  @default(false) @map("is_day_off")
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date], name: "employeeId_date")
+  @@index([tenantId])
+  @@index([date])
+  @@map("work_schedules")
 }
 
 // ============================================
