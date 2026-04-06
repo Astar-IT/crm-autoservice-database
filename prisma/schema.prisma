@@ -275,6 +275,14 @@ model Order {
   adSource              String?     @map("ad_source")
   visitReason           String?     @map("visit_reason")
   recommendations       String?
+  comment               String?
+  color                 String?
+  remindVisit           Boolean     @default(false) @map("remind_visit")
+  getReview             Boolean     @default(false) @map("get_review")
+  serviceDiscountPercent Decimal?   @db.Decimal(5, 2) @map("service_discount_percent")
+  serviceDiscountAmount  Decimal?   @db.Decimal(10, 2) @map("service_discount_amount")
+  productDiscountPercent Decimal?   @db.Decimal(5, 2) @map("product_discount_percent")
+  productDiscountAmount  Decimal?   @db.Decimal(10, 2) @map("product_discount_amount")
   duration              Int?
   postId                String?     @map("post_id")
   clientId              String      @map("client_id")
